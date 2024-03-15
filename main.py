@@ -3,6 +3,8 @@ import json
 import os
 import sys
 
+import cssselect
+import lxml.html
 import requests
 from tqdm import tqdm
 
@@ -38,6 +40,13 @@ def download_img(appid, overwrite=False):
     with open(f'img/{appid}.jpg', 'wb') as f:
         f.write(response.content)
 
+def get_tags(appid):
+    game_page_response = requests.get(f'https://store.steampowered.com/app/{appid}')
+    if game_page_response.status_code != 200:
+        raise Exception(f'Failed to get game page for appid {appid}')
+    root = lxml.html.fromstring(game_page_response.text)
+    return [elem.text_content().strip() for elem in root.cssselect('a.app_tag')]
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -56,26 +65,39 @@ if __name__ == '__main__':
     elif args.download_img:
         if not os.path.exists('img'):
             os.makedirs('img')
-
-        # load from json file
+        
         failed_download_appid = []
+        appid_to_tags = {}
         with open('owned_games.json', 'r') as f:
             data = json.load(f)
             for i in tqdm(range(len(data['response']['games']))):
                 game = data['response']['games'][i]
+                failed_info = {
+                    'appid': game['appid'],
+                    'name': game['name'],
+                    'img_download_failed': False,
+                    'tag_download_failed': False
+                }
                 try:
                     download_img(game['appid'])
                 except Exception as e:
-                    failed_download_appid.append(
-                        {
-                            'appid': game['appid'],
-                            'name': game['name']
-                        }
-                    )
-        
+                    failed_info['img_download_failed'] = True
+                    
+                try:
+                    appid_to_tags[game['appid']] = get_tags(game['appid'])
+                except Exception as e:
+                    failed_info['tag_download_failed'] = True
+
+                if failed_info['img_download_failed'] or failed_info['tag_download_failed']:
+                    failed_download_appid.append(failed_info)
+
         # write failed img download games to file
-        with open('failed_img_download.json', 'w') as f:
+        with open('failed_data_download.json', 'w') as f:
             json.dump(failed_download_appid, f)
+
+        # write tag info to file
+        with open('appid_to_tags.json', 'w') as f:
+            json.dump(appid_to_tags, f)
     elif args.eagle_load:
         print('eagle_load')
     else:
