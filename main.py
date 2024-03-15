@@ -106,6 +106,18 @@ class MainAction:
         pass
 
 
+def main(args):
+    main_action = MainAction()
+    if args.init:
+        main_action.write_owned_games_file()
+    elif args.download_img:
+        main_action.download_img_and_tags()
+    elif args.eagle_load:
+        main_action.eagle_load()
+    else:
+        parser.print_help()
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Help to download steam game images and load to eagle'
@@ -116,15 +128,4 @@ if __name__ == '__main__':
     exclusive_group.add_argument('--download_img', action='store_true', help='download images from owned games')
     exclusive_group.add_argument('--eagle_load', action='store_true', help='load images to eagle')
     args = parser.parse_args()
-
-    main_action = MainAction()
-
-    if args.init:
-        main_action.write_owned_games_file()
-    elif args.download_img:
-        main_action.download_img_and_tags()
-    elif args.eagle_load:
-        main_action.eagle_load()
-    else:
-        parser.print_help()
-        sys.exit(1)
+    main(args)
