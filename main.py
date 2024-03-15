@@ -40,6 +40,7 @@ def download_img(appid, overwrite=False):
     with open(f'img/{appid}.jpg', 'wb') as f:
         f.write(response.content)
 
+
 def get_tags(appid):
     game_page_response = requests.get(f'https://store.steampowered.com/app/{appid}')
     if game_page_response.status_code != 200:
@@ -99,6 +100,7 @@ if __name__ == '__main__':
         with open('appid_to_tags.json', 'w') as f:
             json.dump(appid_to_tags, f)
     elif args.eagle_load:
+        #TODO: load images to eagle
         print('eagle_load')
     else:
         parser.print_help()
