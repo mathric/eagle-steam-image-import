@@ -2,22 +2,39 @@ import argparse
 import json
 import os
 import sys
+import pathlib
 
 import cssselect
 import lxml.html
 import requests
 from tqdm import tqdm
 
-config = json.load(open('config.json'))
+CURR_DIR = pathlib.Path(__file__).parent.absolute()
+
+global_config = json.load(open('config.json'))
+
+def config_format_is_valid(config):
+    required_config = ['API_KEY', 'STEAM_ID', 'EAGLE_LIBRARY_NAME', 'EAGLE_FOLDER_NAME']
+    for key in required_config:
+        if key not in config or not config[key]:
+            return {
+                'status': 'error',
+                'message': f'Config {key} is missing or empty'
+            }
+    return {
+        'status': 'success',
+        'message': 'Config is valid'
+    }
+
 
 class SteamDownloader:
     @staticmethod
     def download_owned_games():
         REQUEST_URL = 'http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/'
-        WRITE_PATH = 'owned_games.json'
+        WRITE_PATH = CURR_DIR / 'owned_games.json'
         params = {
-            'key': config.get('API_KEY'),
-            'steamid': config.get('STEAM_ID'),
+            'key': global_config.get('API_KEY'),
+            'steamid': global_config.get('STEAM_ID'),
             'format': 'json',
             'include_appinfo': 1,
         }
@@ -37,9 +54,9 @@ class SteamDownloader:
 
     @staticmethod
     def download_img(appid, overwrite=False):
-        if not os.path.exists('img'):
-            os.makedirs('img')
-        if not overwrite and os.path.exists(f'img/{appid}.jpg'):
+        if not os.path.exists(CURR_DIR / 'img'):
+            os.makedirs(CURR_DIR / 'img')
+        if not overwrite and os.path.exists(CURR_DIR / f'img/{appid}.jpg'):
             return
 
         url = SteamDownloader.get_img_url(appid)
@@ -47,7 +64,7 @@ class SteamDownloader:
         if response.status_code != 200:
             raise Exception(f'Failed to download image for appid {appid}')
 
-        with open(f'img/{appid}.jpg', 'wb') as f:
+        with open(CURR_DIR / f'img/{appid}.jpg', 'wb') as f:
             f.write(response.content)
 
     @staticmethod
@@ -57,21 +74,100 @@ class SteamDownloader:
             raise Exception(f'Failed to get game page for appid {appid}')
         root = lxml.html.fromstring(game_page_response.text)
         return [elem.text_content().strip() for elem in root.cssselect('a.app_tag')]
+
+
+class EagleLoader:
+    def __init__(self):
+        self._tag_info = None
+        self._owned_games = None
+
+    @property
+    def lib_info(self):
+        return requests.get('http://localhost:41595/api/library/info').json()
     
+    @property
+    def folder_info(self):
+        return requests.get('http://localhost:41595/api/folder/list').json()
+    
+    @property
+    def tag_info(self):
+        if self._tag_info is None:
+            with open(CURR_DIR / 'appid_to_tags.json', 'r') as f:
+                self._tag_info = json.load(f)
+        return self._tag_info
+    
+    @property
+    def owned_games(self):
+        if self._owned_games is None:
+            with open(CURR_DIR / 'owned_games.json', 'r') as f:
+                self._owned_games = json.load(f)
+        return self._owned_games
+
+    def get_or_create_steam_folder(self):
+        if global_config.get('EAGLE_LIBRARY_NAME') != (curr_lib_name:=self.lib_info['data']['library']['name']):
+            raise Exception(f'Library name not match {global_config.get("EAGLE_LIBRARY_NAME")} != {curr_lib_name}')
+        
+        for folder_info in self.folder_info['data']:
+            if folder_info['name'] == global_config.get('EAGLE_FOLDER_NAME'):
+                return folder_info['id']
+        
+        payload = {
+            'folderName': global_config.get('EAGLE_FOLDER_NAME'),
+        }
+        response = requests.post('http://localhost:41595/api/folder/create', json=payload)
+        if response.status_code != 200:
+            raise Exception(f'Failed to create folder "{global_config.get("EAGLE_FOLDER_NAME")}" : {response.text}')
+        else:
+            return response.json().get('data', {}).get('id')
+    
+
+    def load_steam_img_to_eagle(self):
+        if not os.path.exists('img'):
+            raise Exception('Img folder not exists')
+        
+        steam_folder_id = self.get_or_create_steam_folder()
+        appid_to_game_name = {game['appid']: game['name'] for game in self.owned_games['response']['games']}
+        
+        items = []
+        for img_file_name in os.listdir(pathlib.Path(__file__).parent.absolute() / 'img'):
+            appid = pathlib.Path(img_file_name).stem
+            tags = self.tag_info.get(appid, [])
+            item = {
+                'path': str(CURR_DIR / f'img/{img_file_name}'),
+                'name': appid_to_game_name.get(int(appid), ''),
+                'tags': tags,
+                'website': SteamDownloader.get_img_url(appid),
+            }
+            items.append(item)
+        
+        payload = {
+            'items': items,
+            'folderId': steam_folder_id
+        }
+        response = requests.post('http://localhost:41595/api/item/addFromPaths', json=payload)
+        if response.status_code != 200:
+            raise Exception(f'Failed to load images to eagle: {response.text}')
+        else:
+            print('Load images to eagle task send successfully')
+
 
 class MainAction:
     def __init__(self):
+        config_validate_result = config_format_is_valid(global_config)
+        if config_validate_result['status'] == 'error':
+            raise Exception(config_validate_result['message'])
         self.steam_downloader = SteamDownloader()
+        self.eagle_loader = EagleLoader()
     
     def write_owned_games_file(self):
         self.steam_downloader.download_owned_games()
 
     def download_img_and_tags(self):
-        FAIL_DATA_DOWNLOAD_PATH = 'failed_data_download.json'
-        APPID_TO_TAGS_PATH = 'appid_to_tags.json'
+        FAIL_DATA_DOWNLOAD_PATH = CURR_DIR / 'failed_data_download.json'
+        APPID_TO_TAGS_PATH = CURR_DIR / 'appid_to_tags.json'
         failed_download_appid = []
         appid_to_tags = {}
-        with open('owned_games.json', 'r') as f:
+        with open(CURR_DIR / 'owned_games.json', 'r') as f:
             data = json.load(f)
             for i in tqdm(range(len(data['response']['games']))):
                 game = data['response']['games'][i]
@@ -103,7 +199,7 @@ class MainAction:
             json.dump(appid_to_tags, f)
     
     def eagle_load(self):
-        pass
+        self.eagle_loader.load_steam_img_to_eagle()
 
 
 def main(args):
