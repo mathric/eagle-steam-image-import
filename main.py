@@ -216,6 +216,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
+        allow_abbrev=False,
         description='Help to download steam game images and load to eagle'
     )
     main_action_group = parser.add_argument_group('Main Action', 'Main Action')
