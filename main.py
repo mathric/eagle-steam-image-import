@@ -211,7 +211,14 @@ def main(args):
     elif args.eagle_load:
         main_action.eagle_load()
     else:
-        parser.print_help()
+        print('-------Start write owned games file---------')
+        main_action.write_owned_games_file()
+
+        print('-------Start download images and tags-------')
+        main_action.download_img_and_tags()
+
+        print('-------Start load images to eagle-----------')
+        main_action.eagle_load()
 
 
 if __name__ == '__main__':
@@ -220,7 +227,7 @@ if __name__ == '__main__':
         description='Help to download steam game images and load to eagle'
     )
     main_action_group = parser.add_argument_group('Main Action', 'Main Action')
-    exclusive_group = main_action_group.add_mutually_exclusive_group(required=True)
+    exclusive_group = main_action_group.add_mutually_exclusive_group(required=False)
     exclusive_group.add_argument('--init', action='store_true', help='init to get owned games json file')
     exclusive_group.add_argument('--download_img', action='store_true', help='download images from owned games')
     exclusive_group.add_argument('--eagle_load', action='store_true', help='load images to eagle')
