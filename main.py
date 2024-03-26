@@ -1,4 +1,5 @@
 import argparse
+import copy
 import json
 import os
 import sys
@@ -28,13 +29,26 @@ def config_format_is_valid(config):
 
 
 class SteamDownloader:
-    @staticmethod
-    def download_owned_games():
+    def __init__(self, config):
+        self.config = copy.deepcopy(config)
+
+    @property
+    def img_download_dir(self):
+        if self._img_download_dir is None:
+            self._img_download_dir = CURR_DIR / 'img'
+            if self.config.get('IMG_DIR_PATH') != 'DEFAULT':
+                if not os.path.isdir(self.config.get('IMG_DIR_PATH')):
+                    raise Exception(f'{self.config.get("IMG_DIR_PATH")} is not a valid directory')
+                self._img_download_dir = self.config.get('IMG_DIR_PATH')
+        return self._img_download_dir
+    
+
+    def download_owned_games(self):
         REQUEST_URL = 'http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/'
         WRITE_PATH = CURR_DIR / 'owned_games.json'
         params = {
-            'key': global_config.get('API_KEY'),
-            'steamid': global_config.get('STEAM_ID'),
+            'key': self.config.get('API_KEY'),
+            'steamid': self.config.get('STEAM_ID'),
             'format': 'json',
             'include_appinfo': 1,
         }
@@ -45,18 +59,15 @@ class SteamDownloader:
         json_data = response.json()
         with open(WRITE_PATH, 'w') as f:
             json.dump(json_data, f)
-
         return json_data
 
-    @staticmethod
-    def get_img_url(appid):
+
+    def get_img_url(self, appid):
         return f'https://cdn.cloudflare.steamstatic.com/steam/apps/{appid}/library_600x900.jpg'
 
-    @staticmethod
-    def download_img(appid, overwrite=False):
-        if not os.path.exists(CURR_DIR / 'img'):
-            os.makedirs(CURR_DIR / 'img')
-        if not overwrite and os.path.exists(CURR_DIR / f'img/{appid}.jpg'):
+
+    def download_img(self, appid, overwrite=False):
+        if not overwrite and os.path.exists(self.img_download_dir / f'{appid}.jpg'):
             return
 
         url = SteamDownloader.get_img_url(appid)
@@ -64,11 +75,11 @@ class SteamDownloader:
         if response.status_code != 200:
             raise Exception(f'Failed to download image for appid {appid}')
 
-        with open(CURR_DIR / f'img/{appid}.jpg', 'wb') as f:
+        with open(self.img_download_dir / f'{appid}.jpg', 'wb') as f:
             f.write(response.content)
 
-    @staticmethod
-    def get_tags(appid):
+
+    def get_tags(self, appid):
         game_page_response = requests.get(f'https://store.steampowered.com/app/{appid}')
         if game_page_response.status_code != 200:
             raise Exception(f'Failed to get game page for appid {appid}')
@@ -77,9 +88,10 @@ class SteamDownloader:
 
 
 class EagleLoader:
-    def __init__(self):
+    def __init__(self, config):
         self._tag_info = None
         self._owned_games = None
+        self.config = copy.deepcopy(config)
 
     @property
     def lib_info(self):
@@ -104,19 +116,19 @@ class EagleLoader:
         return self._owned_games
 
     def get_or_create_steam_folder(self):
-        if global_config.get('EAGLE_LIBRARY_NAME') != (curr_lib_name:=self.lib_info['data']['library']['name']):
-            raise Exception(f'Library name not match {global_config.get("EAGLE_LIBRARY_NAME")} != {curr_lib_name}')
+        if self.config.get('EAGLE_LIBRARY_NAME') != (curr_lib_name:=self.lib_info['data']['library']['name']):
+            raise Exception(f'Library name not match {self.config.get("EAGLE_LIBRARY_NAME")} != {curr_lib_name}')
         
         for folder_info in self.folder_info['data']:
-            if folder_info['name'] == global_config.get('EAGLE_FOLDER_NAME'):
+            if folder_info['name'] == self.config.get('EAGLE_FOLDER_NAME'):
                 return folder_info['id']
         
         payload = {
-            'folderName': global_config.get('EAGLE_FOLDER_NAME'),
+            'folderName': self.config.get('EAGLE_FOLDER_NAME'),
         }
         response = requests.post('http://localhost:41595/api/folder/create', json=payload)
         if response.status_code != 200:
-            raise Exception(f'Failed to create folder "{global_config.get("EAGLE_FOLDER_NAME")}" : {response.text}')
+            raise Exception(f'Failed to create folder "{self.config.get("EAGLE_FOLDER_NAME")}" : {response.text}')
         else:
             return response.json().get('data', {}).get('id')
     
@@ -156,8 +168,8 @@ class MainAction:
         config_validate_result = config_format_is_valid(global_config)
         if config_validate_result['status'] == 'error':
             raise Exception(config_validate_result['message'])
-        self.steam_downloader = SteamDownloader()
-        self.eagle_loader = EagleLoader()
+        self.steam_downloader = SteamDownloader(global_config)
+        self.eagle_loader = EagleLoader(global_config)
     
     def write_owned_games_file(self):
         self.steam_downloader.download_owned_games()
