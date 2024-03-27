@@ -1,0 +1,8 @@
+{
+    "API_KEY": "Your API key",
+    "STEAM_ID": "Steam user ID",
+    "IMG_DIR_PATH": "DEFAULT",
+    "EAGLE_LIBRARY_NAME": "Your current library name",
+    "EAGLE_FOLDER_NAME": "Folder name in which you want to store the images",
+    "TAG_LANGUAGE": "en"
+}
