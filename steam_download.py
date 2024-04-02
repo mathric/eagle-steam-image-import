@@ -7,6 +7,7 @@ from pathlib import Path
 import cssselect
 import lxml.html
 import requests
+from tqdm import tqdm
 
 
 @dataclass
@@ -100,7 +101,8 @@ class SteamDownloader:
         appid_to_tags = {}
         owned_games = self.owned_games
 
-        for game in owned_games['response']['games']:
+        for i in tqdm(range(len(owned_games['response']['games'])), desc='Downloading tags'):
+            game = owned_games['response']['games'][i]
             failed_info = {
                 'appid': game['appid'],
                 'name': game['name']
