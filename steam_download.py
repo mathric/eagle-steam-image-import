@@ -16,11 +16,33 @@ class SteamDownloaderConfig:
     tag_language: str
     img_dir_path: Path
     working_dir: Path
+    save_meta: bool = False
 
 
 class SteamDownloader:
     def __init__(self, config:SteamDownloaderConfig):
         self.config = dataclasses.replace(config)
+        self._owned_games = None
+        self._appid_to_tags = None
+
+    @property
+    def owned_games(self):
+        if self._owned_games is None:
+            if os.path.exists(self.config.working_dir / 'owned_games.json'):
+                self._owned_games = json.load(open(self.config.working_dir / 'owned_games.json', 'r'))
+            else:
+                self._owned_games = self.download_owned_games()
+        return self._owned_games
+    
+    @property
+    def appid_to_tags(self):
+        if not self._appid_to_tags:
+            if os.path.exists(self.config.working_dir / 'appid_to_tags.json'):
+                with open(self.config.working_dir / 'appid_to_tags.json', 'r') as f:
+                    self._appid_to_tags = json.load(f)
+            else:
+                self._appid_to_tags = self.download_tags()
+        return self._appid_to_tags
 
     @staticmethod
     def get_img_url(appid):
@@ -40,8 +62,9 @@ class SteamDownloader:
             raise Exception(f'Failed to get owned games {response.text}')
         
         json_data = response.json()
-        with open(WRITE_PATH, 'w') as f:
-            json.dump(json_data, f)
+        if self.config.save_meta:
+            with open(WRITE_PATH, 'w') as f:
+                json.dump(json_data, f)
         return json_data
 
     def download_img(self, appid, overwrite=False):
@@ -71,3 +94,28 @@ class SteamDownloader:
             raise Exception(f'Failed to get game page for appid {appid}')
         root = lxml.html.fromstring(game_page_response.text)
         return [elem.text_content().strip() for elem in root.cssselect('a.app_tag')]
+    
+    def download_tags(self):
+        failed_download = []
+        appid_to_tags = {}
+        owned_games = self.owned_games
+
+        for game in owned_games['response']['games']:
+            failed_info = {
+                'appid': game['appid'],
+                'name': game['name']
+            }
+                
+            try:
+                appid_to_tags[game['appid']] = self.get_tags(game['appid'])
+            except Exception as e:
+                failed_download.append(failed_info)
+        
+        if self.config.save_meta:
+            with open(self.config.working_dir / 'failed_tag_download.json', 'w') as f:
+                json.dump(failed_download, f)
+            
+            with open(self.config.working_dir / 'appid_to_tags.json', 'w') as f:
+                json.dump(appid_to_tags, f)
+        
+        return appid_to_tags

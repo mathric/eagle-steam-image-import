@@ -25,7 +25,6 @@ def config_format_is_valid(config):
     }
 
 
-
 def get_steam_downloader_config(config) -> SteamDownloaderConfig:
     img_dir_path = CURR_DIR / 'img'
     if config.get('IMG_DIR_PATH') != 'DEFAULT':
@@ -38,7 +37,8 @@ def get_steam_downloader_config(config) -> SteamDownloaderConfig:
         api_key=config.get('API_KEY'),
         steam_id=config.get('STEAM_ID'),
         tag_language=config.get('TAG_LANGUAGE'),
-        working_dir=DEFAULT_WORKING_DIR
+        working_dir=DEFAULT_WORKING_DIR,
+        save_meta=config.get('SAVE_META', False)
     )
 
 
@@ -62,47 +62,34 @@ class MainAction:
         self.steam_downloader = SteamDownloader(get_steam_downloader_config(user_config))
         self.eagle_loader = EagleLoader(get_eagle_loader_config(user_config))
 
-    def write_owned_games_file(self):
-        self.steam_downloader.download_owned_games()
+    def download_imgs(self, save_meta=False):
+        FAIL_DATA_DOWNLOAD_PATH = DEFAULT_WORKING_DIR / 'failed_img_download.json'
+        failed_download_list = []
+        owned_games = self.steam_downloader.owned_games
 
-    def download_img_and_tags(self):
-        FAIL_DATA_DOWNLOAD_PATH = DEFAULT_WORKING_DIR / 'failed_data_download.json'
-        APPID_TO_TAGS_PATH = DEFAULT_WORKING_DIR / 'appid_to_tags.json'
-        failed_download_appid = []
-        appid_to_tags = {}
-        with open(DEFAULT_WORKING_DIR / 'owned_games.json', 'r') as f:
-            data = json.load(f)
-            for i in tqdm(range(len(data['response']['games']))):
-                game = data['response']['games'][i]
-                failed_info = {
-                    'appid': game['appid'],
-                    'name': game['name'],
-                    'img_download_failed': False,
-                    'tag_download_failed': False
-                }
-                try:
-                    self.steam_downloader.download_img(game['appid'])
-                except Exception as e:
-                    failed_info['img_download_failed'] = True
-                    
-                try:
-                    appid_to_tags[game['appid']] = self.steam_downloader.get_tags(game['appid'])
-                except Exception as e:
-                    failed_info['tag_download_failed'] = True
+        for i in tqdm(range(len(owned_games['response']['games']))):
+            game = owned_games['response']['games'][i]
+            failed_info = {
+                'appid': game['appid'],
+                'name': game['name']
+            }
+            try:
+                self.steam_downloader.download_img(game['appid'])
+            except Exception as e:
+                failed_download_list.append(failed_info)
 
-                if failed_info['img_download_failed'] or failed_info['tag_download_failed']:
-                    failed_download_appid.append(failed_info)
+        if save_meta:
+            # write failed img download games to file
+            with open(FAIL_DATA_DOWNLOAD_PATH, 'w') as f:
+                json.dump(failed_download_list, f)
 
-        # write failed img download games to file
-        with open(FAIL_DATA_DOWNLOAD_PATH, 'w') as f:
-            json.dump(failed_download_appid, f)
-
-        # write tag info to file
-        with open(APPID_TO_TAGS_PATH, 'w') as f:
-            json.dump(appid_to_tags, f)
-    
     def eagle_load(self):
-        self.eagle_loader.load_steam_img_to_eagle()
+        owned_games = self.steam_downloader.owned_games
+        appid_to_tags = self.steam_downloader.appid_to_tags
+        self.eagle_loader.load_steam_img_to_eagle(
+            tag_info=appid_to_tags,
+            owned_games=owned_games
+        )
 
 
 def main(args):
@@ -112,18 +99,13 @@ def main(args):
         raise Exception(config_validate_result['message'])
 
     main_action = MainAction(user_config)
-    if args.init:
-        main_action.write_owned_games_file()
-    elif args.download_img_and_tag:
-        main_action.download_img_and_tags()
+    if args.download_img:
+        main_action.download_imgs()
     elif args.eagle_load:
         main_action.eagle_load()
     else:
-        print('-------Start write owned games file---------')
-        main_action.write_owned_games_file()
-
         print('-------Start download images and tags-------')
-        main_action.download_img_and_tags()
+        main_action.download_imgs()
 
         print('-------Start load images to eagle-----------')
         main_action.eagle_load()
@@ -136,8 +118,7 @@ if __name__ == '__main__':
     )
     main_action_group = parser.add_argument_group('Main Action', 'Main Action')
     exclusive_group = main_action_group.add_mutually_exclusive_group(required=False)
-    exclusive_group.add_argument('-i', '--init', action='store_true', help='init to get owned games json file')
-    exclusive_group.add_argument('-d', '--download_img_and_tag', action='store_true', help='download images and tags from owned games')
+    exclusive_group.add_argument('-d', '--download_img', action='store_true', help='download images from owned games')
     exclusive_group.add_argument('-e', '--eagle_load', action='store_true', help='load images to eagle')
     args = parser.parse_args()
     main(args)

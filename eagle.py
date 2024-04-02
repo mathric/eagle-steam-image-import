@@ -20,8 +20,6 @@ class EagleloaderConfig:
 
 class EagleLoader:
     def __init__(self, config: EagleloaderConfig):
-        self._tag_info = None
-        self._owned_games = None
         self.config = dataclasses.replace(config)
 
     @property
@@ -31,20 +29,6 @@ class EagleLoader:
     @property
     def folder_info(self):
         return requests.get('http://localhost:41595/api/folder/list').json()
-    
-    @property
-    def tag_info(self):
-        if self._tag_info is None:
-            with open(self.config.working_dir / 'appid_to_tags.json', 'r') as f:
-                self._tag_info = json.load(f)
-        return self._tag_info
-    
-    @property
-    def owned_games(self):
-        if self._owned_games is None:
-            with open(self.config.working_dir / 'owned_games.json', 'r') as f:
-                self._owned_games = json.load(f)
-        return self._owned_games
 
     def get_or_create_steam_folder(self):
         if self.config.eagle_library_name != (curr_lib_name:=self.lib_info['data']['library']['name']):
@@ -64,17 +48,17 @@ class EagleLoader:
             return response.json().get('data', {}).get('id')
     
 
-    def load_steam_img_to_eagle(self):
-        if not os.path.exists('img'):
+    def load_steam_img_to_eagle(self, tag_info, owned_games):
+        if not os.path.exists(self.config.img_dir_path):
             raise Exception('Img folder not exists')
         
         steam_folder_id = self.get_or_create_steam_folder()
-        appid_to_game_name = {game['appid']: game['name'] for game in self.owned_games['response']['games']}
+        appid_to_game_name = {game['appid']: game['name'] for game in owned_games}
         
         items = []
         for img_file_name in os.listdir(self.config.img_dir_path):
             appid = pathlib.Path(img_file_name).stem
-            tags = self.tag_info.get(appid, [])
+            tags = tag_info.get(appid, [])
             item = {
                 'path': str(self.config.img_dir_path / f'{img_file_name}'),
                 'name': appid_to_game_name.get(int(appid), ''),
