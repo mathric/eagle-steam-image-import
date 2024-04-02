@@ -28,19 +28,14 @@ Download your own steam game library image and help import to eagle
 
 If no option is given, it just run in the following order
 
-(1) --init\
-(2) --download_img_and_tag\
-(3) --eagle_load
+(1) --download_img\
+(2) --eagle_load
 
 ### Options
 
-- -i, --init
+- -d, --download_img
 
-    Download Necessarry basic information for further usage
-
-- -d, --download_img_and_tag
-
-    Download all games image file and related metadata
+    Download all games image file
 
 - -e, --eagle_load
 
