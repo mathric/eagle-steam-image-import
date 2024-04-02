@@ -51,9 +51,9 @@ class EagleLoader:
     def load_steam_img_to_eagle(self, tag_info, owned_games):
         if not os.path.exists(self.config.img_dir_path):
             raise Exception('Img folder not exists')
-        
+
         steam_folder_id = self.get_or_create_steam_folder()
-        appid_to_game_name = {game['appid']: game['name'] for game in owned_games}
+        appid_to_game_name = {game['appid']: game['name'] for game in owned_games['response']['games']}
         
         items = []
         for img_file_name in os.listdir(self.config.img_dir_path):
