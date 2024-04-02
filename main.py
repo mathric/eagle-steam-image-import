@@ -59,10 +59,11 @@ def get_eagle_loader_config(config) -> EagleloaderConfig:
 
 class MainAction:
     def __init__(self, user_config):
+        self.save_meta = user_config.get('SAVE_META', False)
         self.steam_downloader = SteamDownloader(get_steam_downloader_config(user_config))
         self.eagle_loader = EagleLoader(get_eagle_loader_config(user_config))
 
-    def download_imgs(self, save_meta=False):
+    def download_imgs(self):
         FAIL_DATA_DOWNLOAD_PATH = DEFAULT_WORKING_DIR / 'failed_img_download.json'
         failed_download_list = []
         owned_games = self.steam_downloader.owned_games
@@ -78,7 +79,7 @@ class MainAction:
             except Exception as e:
                 failed_download_list.append(failed_info)
 
-        if save_meta:
+        if self.save_meta:
             # write failed img download games to file
             with open(FAIL_DATA_DOWNLOAD_PATH, 'w') as f:
                 json.dump(failed_download_list, f)
