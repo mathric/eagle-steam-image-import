@@ -164,8 +164,6 @@ cython_debug/
 img/
 
 # Downloaded files
-failed_data_download.json
-owned_games.json
-appid_to_tags.json
-*backup*
+*.json
+!config.json
 
