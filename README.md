@@ -17,6 +17,7 @@ Download your own steam game library image and help import to eagle
     }
     ```
 
+    - `STEAM_ID`: should be steamID64 format. e.g. 76561197960287930
     - `IMG_DIR_PATH`: DEFAULT path will generate an img folder in this project root directory
     - `TAG_LANGUAGE`: Current support en and zh-TW
 

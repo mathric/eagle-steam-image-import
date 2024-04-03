@@ -35,7 +35,7 @@ def get_steam_downloader_config(config) -> SteamDownloaderConfig:
     return SteamDownloaderConfig(
         img_dir_path=img_dir_path,
         api_key=config.get('API_KEY'),
-        steam_id=config.get('STEAM_ID'),
+        steam_id64=config.get('STEAM_ID'),
         tag_language=config.get('TAG_LANGUAGE'),
         working_dir=DEFAULT_WORKING_DIR,
         save_meta=config.get('SAVE_META', False)

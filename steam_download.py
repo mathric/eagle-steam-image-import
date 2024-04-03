@@ -13,7 +13,7 @@ from tqdm import tqdm
 @dataclass
 class SteamDownloaderConfig:
     api_key: str
-    steam_id: str
+    steam_id64: str
     tag_language: str
     img_dir_path: Path
     working_dir: Path
@@ -54,7 +54,7 @@ class SteamDownloader:
         WRITE_PATH = self.config.working_dir / 'owned_games.json'
         params = {
             'key': self.config.api_key,
-            'steamid': self.config.steam_id,
+            'steamid': self.config.steam_id64,
             'format': 'json',
             'include_appinfo': 1,
         }
