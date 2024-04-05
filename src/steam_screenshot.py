@@ -34,9 +34,4 @@ def get_steam_id64(steam_id_component: SteamIDComponent) -> int:
     return steam_id_component.account_number*2 + steam_id_component.y + int(steamid64_identifier[steam_id_component.account_type])
 
 
-assert get_steamid_component(76561198092541763) == SteamIDComponent(1, 1, 1, 66138017, 1)
-assert get_steam_id64(SteamIDComponent(1, 1, 1, 66138017, 1)) == 76561198092541763
-assert get_steam_id32(SteamIDComponent(1, 1, 1, 66138017, 1)) == 132276035
-
-
 

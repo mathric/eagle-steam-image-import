@@ -8,7 +8,7 @@ from tqdm import tqdm
 from eagle import EagleLoader, EagleloaderConfig
 from steam_download import SteamDownloader, SteamDownloaderConfig
 
-CURR_DIR = pathlib.Path(__file__).parent.absolute()
+CURR_DIR = pathlib.Path(__file__).parent.parent.absolute()
 DEFAULT_WORKING_DIR = CURR_DIR
 
 def config_format_is_valid(config):

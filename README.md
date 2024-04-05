@@ -23,7 +23,7 @@ Download your own steam game library image and help import to eagle
 
 2. Install `requirements.txt` in your environment
 
-3. Run `main.py [Option]`
+3. Run `src/main.py [Option]`
 
 ## Description
 
