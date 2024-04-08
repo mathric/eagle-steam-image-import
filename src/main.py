@@ -86,11 +86,18 @@ class MainAction:
 
     def eagle_load(self):
         owned_games = self.steam_downloader.owned_games
+        appid_to_game_name = {game['appid']: game['name'] for game in owned_games['response']['games']}
         appid_to_tags = self.steam_downloader.appid_to_tags
-        self.eagle_loader.load_steam_img_to_eagle(
-            tag_info=appid_to_tags,
-            owned_games=owned_games
-        )
+        app_id_to_details = {}
+
+        for app_id in appid_to_tags:
+            app_id_to_details[app_id] = {
+                'name': appid_to_game_name[app_id],
+                'tags': appid_to_tags[app_id],
+                'website': SteamDownloader.get_img_url(app_id)
+            }
+
+        self.eagle_loader.load_steam_img_to_eagle(app_id_to_details)
 
 
 def main(args):

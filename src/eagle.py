@@ -6,8 +6,6 @@ from pathlib import Path
 
 import requests
 
-from steam_download import SteamDownloader
-
 
 @dataclass
 class EagleloaderConfig:
@@ -47,22 +45,24 @@ class EagleLoader:
             return response.json().get('data', {}).get('id')
     
 
-    def load_steam_img_to_eagle(self, tag_info, owned_games):
+    def load_steam_img_to_eagle(self, app_id_to_details):
         if not os.path.exists(self.config.img_dir_path):
             raise Exception('Img folder not exists')
 
         steam_folder_id = self.get_or_create_steam_folder()
-        appid_to_game_name = {game['appid']: game['name'] for game in owned_games['response']['games']}
         
         items = []
         for img_file_name in os.listdir(self.config.img_dir_path):
             appid = pathlib.Path(img_file_name).stem
-            tags = tag_info.get(appid, [])
+            details = app_id_to_details.get(appid)
+            if not details:
+                raise Exception(f'Appid {appid} details not found')
+            
             item = {
                 'path': str(self.config.img_dir_path / f'{img_file_name}'),
-                'name': appid_to_game_name.get(int(appid), ''),
-                'tags': tags,
-                'website': SteamDownloader.get_img_url(appid),
+                'name': details.get('name'),
+                'tags': details.get('tags'),
+                'website': details.get('website'),
             }
             items.append(item)
         
