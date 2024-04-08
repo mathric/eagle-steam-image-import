@@ -29,20 +29,13 @@ class SteamDownloader:
     @property
     def owned_games(self):
         if self._owned_games is None:
-            if os.path.exists(self.config.working_dir / 'owned_games.json'):
-                self._owned_games = json.load(open(self.config.working_dir / 'owned_games.json', 'r'))
-            else:
-                self._owned_games = self.download_owned_games()
+            self._owned_games = self.download_owned_games()
         return self._owned_games
     
     @property
     def appid_to_tags(self):
         if not self._appid_to_tags:
-            if os.path.exists(self.config.working_dir / 'appid_to_tags.json'):
-                with open(self.config.working_dir / 'appid_to_tags.json', 'r') as f:
-                    self._appid_to_tags = json.load(f)
-            else:
-                self._appid_to_tags = self.download_tags()
+            self._appid_to_tags = self.download_tags()
         return self._appid_to_tags
 
     @staticmethod
